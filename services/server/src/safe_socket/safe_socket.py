@@ -1,11 +1,19 @@
 import socket
 
-# TODO: Complete with a short-read/short-write tolerant implementation
-
-
 def recv_all(socket: socket.socket, size):
-    return socket.recv(size)
+    buffer = b""
+    while len(buffer) < size:
+        chunk = socket.recv(size - len(buffer))
+        if not chunk or len(chunk) == 0:
+            break
+        buffer += chunk
+     
+    return buffer
 
-
-def send_all(socket: socket.socket, bytes):
-    return socket.send(bytes)
+def send_all(socket: socket.socket, data):
+    total_sent = 0
+    while total_sent < len(data):
+        sent = socket.send(data[total_sent:])
+        if sent == 0:
+            raise ConnectionError
+        total_sent += sent
