@@ -3,7 +3,8 @@ package client
 import (
 	"net"
 	"time"
-
+	"os"
+	"bufio"
 	"github.com/7574-sistemas-distribuidos/tp-nivelador/src/logger"
 	"github.com/7574-sistemas-distribuidos/tp-nivelador/src/safe_socket"
 )
@@ -19,6 +20,8 @@ type ClientConfig struct {
 	ServerHost string
 	ServerPort string
 	AgencyId   string
+	Input      string
+	OutputDir  string
 }
 
 type Client struct {
@@ -62,30 +65,60 @@ func (client *Client) Run() error {
 	const mainAction = "test-echo-server"
 	defer client.conn.Close()
 
-	for messageId := range ECHO_CLIENT_MESSAGE_AMOUNT {
+	inFile, err := os.Open(client.config.Input)
+	if err != nil {
+		logger.Error("open-input-file", logger.Fail, "error", err)
+		return err
+	}
+	defer inFile.Close()
+
+	outFile, err := os.Create(client.config.OutputDir + "/" + client.config.Input)
+	if err != nil {
+		logger.Error("open-output-file", logger.Fail, "error", err)
+		return err
+	}
+	defer outFile.Close()
+
+	writer := bufio.NewWriter(outFile)
+	defer writer.Flush()
+
+	scanner := bufio.NewScanner(inFile)
+
+	messageId := 0
+	for scanner.Scan() {
+		line := scanner.Text()
 		messageArgs := []any{"agency-id", client.config.AgencyId, "message-id", messageId}
 		logger.Info(mainAction, logger.InProgress, messageArgs...)
 
-		clientMessage := client.config.AgencyId
-
-		if err := safe_socket.SendAll(client.conn, []byte(clientMessage)); err != nil {
+		if err := safe_socket.SendAll(client.conn, []byte(line)); err != nil {
 			logger.Error("send-message", logger.Fail, messageArgs...)
 			return err
 		}
 
-		responseBuffer, err := safe_socket.RecvAll(client.conn, ECHO_CLIENT_BUFFER_SIZE)
+		responseBuffer, err := safe_socket.RecvAll(client.conn, len(line))
 		if err != nil {
 			logger.Error("recv-response", logger.Fail, messageArgs...)
 			return err
 		}
 
-		if string(responseBuffer) != clientMessage {
+		if string(responseBuffer) != line {
 			logger.Error("check-response", logger.Fail, messageArgs...)
 			return err
 		}
 
-		time.Sleep(ECHO_CLIENT_MESSAGE_DELAY_MS * time.Millisecond)
+		if _, err := writer.Write(responseBuffer); err != nil {
+			logger.Error("write-output", logger.Fail, messageArgs...)
+			return err
+		}
+
+		if err := writer.WriteByte('\n'); err != nil {
+			logger.Error("write-output", logger.Fail, messageArgs...)
+			return err
+		}
+
+		messageId++
 	}
+
 	logger.Info(mainAction, logger.Success, "agency-id", client.config.AgencyId)
 
 	return nil
