@@ -5,8 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"strings"
 
+	"github.com/7574-sistemas-distribuidos/tp-nivelador/src/lottery"
 	"github.com/7574-sistemas-distribuidos/tp-nivelador/src/safe_socket"
 )
 
@@ -21,15 +23,7 @@ const (
 
 const lengthPrefixSize = 4
 
-type Bet struct {
-	FirstName string
-	LastName  string
-	Document  string
-	Birthdate string
-	Number    string
-}
-
-func SendBatch(conn io.Writer, agencyId string, bets []Bet) error {
+func SendBatch(conn net.Conn, agencyId string, bets []lottery.Bet) error {
 	lines := make([]string, 0, len(bets)+1)
 	lines = append(lines, agencyId)
 	for _, bet := range bets {
@@ -37,10 +31,25 @@ func SendBatch(conn io.Writer, agencyId string, bets []Bet) error {
 		lines = append(lines, strings.Join(fields, "|"))
 	}
 	payload := []byte(strings.Join(lines, "\n"))
-	return sendMessage(conn, MsgBatch, payload)
+	
+	if err := sendMessage(conn, MsgBatch, payload); err != nil {
+		return err
+	}
+
+	ok, err := recvBatchAck(conn)
+
+	if err != nil {
+		return err
+	}
+
+	if !ok {
+		return errors.New("protocol: batch rejected")
+	}
+
+	return nil
 }
 
-func RecvBatchAck(conn io.Reader) (bool, error) {
+func recvBatchAck(conn io.Reader) (bool, error) {
 	msgType, payload, err := recvMessage(conn)
 	if err != nil {
 		return false, err
