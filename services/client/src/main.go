@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"os"
+	"strconv"
 
 	client "github.com/7574-sistemas-distribuidos/tp-nivelador/src/client"
 	"github.com/7574-sistemas-distribuidos/tp-nivelador/src/logger"
@@ -34,12 +35,22 @@ func loadConfig() (client.ClientConfig, error) {
 		return client.ClientConfig{}, errors.New("OUTPUT_DIR environment variable is required")
 	}
 
+	batchSizeStr := os.Getenv("BATCH_SIZE")
+	if batchSizeStr == "" {
+		return client.ClientConfig{}, errors.New("BATCH_SIZE environment variable is required")
+	}
+	batchSize, err := strconv.Atoi(batchSizeStr)
+	if err != nil || batchSize <= 0 {
+		return client.ClientConfig{}, errors.New("BATCH_SIZE must be a positive integer")
+	}
+
 	return client.ClientConfig{
 		ServerHost: serverHost,
 		ServerPort: serverPort,
 		AgencyId:   agencyId,
 		Input:      input,
 		OutputDir:  outputDir,
+		BatchSize:  batchSize,
 	}, nil
 }
 

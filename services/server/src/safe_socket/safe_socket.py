@@ -4,7 +4,7 @@ def recv_all(socket: socket.socket, size):
     buffer = b""
     while len(buffer) < size:
         chunk = socket.recv(size - len(buffer))
-        if not chunk or len(chunk) == 0:
+        if not chunk:
             break
         buffer += chunk
      

@@ -8,6 +8,8 @@ services:
       - PYTHONUNBUFFERED=1
       - SERVER_HOST=server
       - SERVER_PORT=5678
+      - STORAGE_PATH=/bets.csv
+      - AGENCY_QUORUM_MIN=5
     ports:
       - "5678:5678"
 
@@ -23,7 +25,8 @@ services:
       - SERVER_HOST=server
       - SERVER_PORT=5678
       - INPUT_FILE=input-1.csv
-      - OUTPUT_DIR=/output
+      - OUTPUT_FILE=output-1.csv
+      - BATCH_SIZE=200
     volumes:
       - ./input/input-1.csv:/input-1.csv:ro
       - ./output:/output
@@ -39,7 +42,8 @@ services:
       - SERVER_HOST=server
       - SERVER_PORT=5678
       - INPUT_FILE=input-2.csv
-      - OUTPUT_DIR=/output
+      - OUTPUT_FILE=output-2.csv
+      - BATCH_SIZE=200
     volumes:
       - ./input/input-2.csv:/input-2.csv:ro
       - ./output:/output  
@@ -55,7 +59,8 @@ services:
       - SERVER_HOST=server
       - SERVER_PORT=5678
       - INPUT_FILE=input-3.csv
-      - OUTPUT_DIR=/output
+      - OUTPUT_FILE=output-3.csv
+      - BATCH_SIZE=200
     volumes:
       - ./input/input-3.csv:/input-3.csv:ro
       - ./output:/output
@@ -71,7 +76,8 @@ services:
       - SERVER_HOST=server
       - SERVER_PORT=5678
       - INPUT_FILE=input-4.csv
-      - OUTPUT_DIR=/output
+      - OUTPUT_FILE=output-4.csv
+      - BATCH_SIZE=200
     volumes:
       - ./input/input-4.csv:/input-4.csv:ro
       - ./output:/output  
@@ -87,7 +93,8 @@ services:
       - SERVER_HOST=server
       - SERVER_PORT=5678
       - INPUT_FILE=input-5.csv
-      - OUTPUT_DIR=/output
+      - OUTPUT_FILE=output-5.csv
+      - BATCH_SIZE=200
     volumes:
       - ./input/input-5.csv:/input-5.csv:ro
       - ./output:/output
