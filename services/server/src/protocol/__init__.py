@@ -1,1 +1,1 @@
-from .protocol import recv_batch_or_finished, send_batch_ack, send_winners
+from .protocol import Protocol

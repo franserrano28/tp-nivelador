@@ -1,10 +1,9 @@
+from .client_handler import ClientHandler
 import socket
 import threading
 import signal
-import sys
 
-import logger
-import protocol
+from protocol import Protocol
 from lottery import Lottery
 
 
@@ -21,9 +20,11 @@ class Server:
 
         self.quorum_condition = threading.Condition()
         self.finished_agencies = set()
-        self.draw_done = False
+        self.draw_done = [False]
         
-        self.running = True
+        self.running_event = threading.Event()
+        self.running_event.set()
+        
         self.server_socket = None
         self.threads = []
 
@@ -34,7 +35,7 @@ class Server:
         if not self.running:
             return
         
-        self.running = False
+        self.running_event.clear()
 
         if self.server_socket:
             try:
@@ -44,79 +45,6 @@ class Server:
 
         with self.quorum_condition:
             self.quorum_condition.notify_all()
-
-    def _handle_client(self, client_socket):
-        action = "handle-client"
-        bets_amount = 0
-        agency_id = None
-
-        try:
-            logger.info(action, logger.LogResult.in_progress)
-            while self.running:
-                kind, agency_id_recv, bets = protocol.recv_batch_or_finished(client_socket)
-
-                if kind is None or not self.running:
-                    return
-
-                if kind == "batch":
-                    agency_id = agency_id_recv
-                    try:
-                        with self.storage_lock:
-                            self.lottery.store_bets(bets)
-                        protocol.send_batch_ack(client_socket, True)
-                        bets_amount += len(bets)
-                    except Exception:
-                        protocol.send_batch_ack(client_socket, False)
-                    continue
-
-                if kind == "finished":
-                    agency_id = agency_id_recv
-                    break
-
-            if not self.running:
-                return
-
-            if not self._wait_for_quorum(agency_id):
-                return
-
-            with self.storage_lock:
-                winners = [
-                    bet
-                    for bet in self.lottery.load_bets()
-                    if bet.agency_id == agency_id and self.lottery.has_won(bet)
-                ]
-            
-            if self.running:
-                protocol.send_winners(client_socket, winners)
-                logger.info(
-                    action,
-                    logger.LogResult.success,
-                    "bets-amount", bets_amount,
-                    "winners-amount", len(winners),
-                )
-
-        except Exception as e:
-            if self.running:
-                logger.error(action, logger.LogResult.fail, "bets-amount", bets_amount)
-                raise e
-        finally:
-            try:
-                client_socket.close()
-            except Exception:
-                pass
-
-    def _wait_for_quorum(self, agency_id):
-        with self.quorum_condition:
-            if agency_id is not None:
-                self.finished_agencies.add(agency_id)
-
-            if len(self.finished_agencies) >= self.quorum_min:
-                self.draw_done = True
-                self.quorum_condition.notify_all()
-            else:
-                self.quorum_condition.wait_for(lambda: self.draw_done or not self.running)
-
-            return self.running and self.draw_done
 
     def run(self):
         action = "accept-connection"
@@ -129,16 +57,31 @@ class Server:
         while self.running:
             try:
                 client_socket, _ = self.server_socket.accept()
+
+                client = ClientHandler(
+                    Protocol(client_socket),
+                    self.lottery,
+                    self.quorum_condition,
+                    self.finished_agencies,
+                    self.draw_done,
+                    self.storage_lock,
+                    self.quorum_min,
+                    self.running_event
+                )
+                    
             except OSError:
                 break
 
             self.threads = [t for t in self.threads if t.is_alive()]
 
-            thread = threading.Thread(target=self._handle_client, args=(client_socket,))
-            thread.daemon = True
-            thread.start()
-            self.threads.append(thread)
+            client.start()
+            self.threads.append(client)
 
         for thread in self.threads:
             if thread.is_alive():
                 thread.join(timeout=1.0)
+
+
+    @property
+    def running(self):
+        return self.running_event.is_set()
