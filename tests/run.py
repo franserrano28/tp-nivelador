@@ -14,15 +14,15 @@ from tests import (
 )
 
 TEST_CASES = [
-    #Json,
-    #ForcedExit,
-    #OutputFiles,
-    #Concurrency,
+    Json,
+    ForcedExit,
+    OutputFiles,
+    Concurrency,
     MemoryProfile,
-    #SigtermHandling,
-    #ClientShortReadWrite,
-    #ServerShortReadWrite,
-    #Batching,
+    SigtermHandling,
+    ClientShortReadWrite,
+    ServerShortReadWrite,
+    Batching,
 ]
 MESSAGE_PADDING = 32
 
