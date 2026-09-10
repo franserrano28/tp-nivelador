@@ -96,14 +96,13 @@ func sendMessage(conn io.Writer, msgType MessageType, payload []byte) error {
 	body = append(body, byte(msgType))
 	body = append(body, payload...)
 
+	frame := make([]byte, 0, lengthPrefixSize+len(body))
 	lengthBuf := make([]byte, lengthPrefixSize)
 	binary.BigEndian.PutUint32(lengthBuf, uint32(len(body)))
+	frame = append(frame, lengthBuf...)
+	frame = append(frame, body...)
 
-	if err := safe_socket.SendAll(conn, lengthBuf); err != nil {
-		return err
-	}
-
-	return safe_socket.SendAll(conn, body)
+	return safe_socket.SendAll(conn, frame)
 }
 
 func recvMessage(conn io.Reader) (MessageType, []byte, error) {

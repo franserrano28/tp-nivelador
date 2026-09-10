@@ -58,8 +58,8 @@ class Protocol:
     def _send_message(self, msg_type, payload):
         body = bytes([msg_type]) + payload
         length_prefix = struct.pack(">I", len(body))
-        safe_socket.send_all(self.socket, length_prefix)
-        safe_socket.send_all(self.socket, body)
+        frame = length_prefix + body
+        safe_socket.send_all(self.socket, frame)
 
 
     def _recv_message(self):
@@ -74,4 +74,3 @@ class Protocol:
             return None, None
 
         return body[0], body[1:]
-        
