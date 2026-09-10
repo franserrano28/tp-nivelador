@@ -24,6 +24,7 @@ class ClientHandler(threading.Thread):
         self.quorum_min = quorum_min
         self.running_event = running_event
 
+    # Se separa el manejo del cliente del manejo del servidor, (uno escucha y crea, el otro se comunica)
     def run(self):
         action = "handle-client"
         bets_amount = 0
@@ -85,6 +86,7 @@ class ClientHandler(threading.Thread):
                 pass
 
 
+    # Espera a que se alcance el quorum necesario para sortear las apuestas
     def _wait_for_quorum(self, agency_id):
         with self.quorum_condition:
             if agency_id is not None:
@@ -100,6 +102,7 @@ class ClientHandler(threading.Thread):
 
             return self.running and self.draw_done[0]
     
-    @property # decorador para metodo como atributo
+    # Decorador para metodo como atributo
+    @property
     def running(self):
         return self.running_event.is_set()

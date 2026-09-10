@@ -15,10 +15,10 @@ import (
 type MessageType byte
 
 const (
-	MsgBatch    MessageType = 0x04
+	MsgBatch    MessageType = 0x01
 	MsgFinished MessageType = 0x02
 	MsgWinners  MessageType = 0x03
-	MsgBatchAck MessageType = 0x05
+	MsgBatchAck MessageType = 0x04
 )
 
 const lengthPrefixSize = 4

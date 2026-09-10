@@ -11,6 +11,7 @@ import (
 	"github.com/7574-sistemas-distribuidos/tp-nivelador/src/logger"
 )
 
+// Se cargan todas las variables de entorno
 func loadConfig() (client.ClientConfig, error) {
 	agencyId := os.Getenv("AGENCY_ID")
 	if agencyId == "" {
@@ -71,12 +72,14 @@ func run() int {
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGINT)
+	// La rutina se queda bloqueada esperando la notificacion al signal channel y cierra todo cuando llega
 	go func() {
 		<-sigChan
 		logger.Info("shutdown", logger.InProgress)
 		c.Close()
 	}()
 
+	// Run del cliente y notifica cualquier error
 	if err := c.Run(); err != nil {
 		logger.Error("client-run", logger.Fail, "err", err)
 		return 1

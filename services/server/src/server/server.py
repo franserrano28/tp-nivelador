@@ -28,9 +28,11 @@ class Server:
         self.server_socket = None
         self.threads = []
 
+        # Indica que se ejecute la funcion __handle_shutdown en caso de que se reciba SIGTERM o SIGINT
         signal.signal(signal.SIGTERM, self.__handle_shutdown)
         signal.signal(signal.SIGINT, self.__handle_shutdown)
 
+    # Maneja el apagado ordenado del servidor, limpia los recursos y cierra las conexiones
     def __handle_shutdown(self, signum, frame):
         if not self.running:
             return
@@ -46,6 +48,8 @@ class Server:
         with self.quorum_condition:
             self.quorum_condition.notify_all()
 
+
+    # Corre el servidor, acepta las conexiones de los clientes y crea un thread para cada uno
     def run(self):
         action = "accept-connection"
 
@@ -82,6 +86,7 @@ class Server:
                 thread.join(timeout=1.0)
 
 
+    # Usamos esto para que traten el metodo running como una variable/atributo
     @property
     def running(self):
         return self.running_event.is_set()

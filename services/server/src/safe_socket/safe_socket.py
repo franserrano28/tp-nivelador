@@ -13,10 +13,11 @@ def recv_all(socket, size):
 
 def send_all(socket: socket.socket, data):
     total_sent = 0
+    # Con memoryview ahorro memoria en vez de crear slices en cada iteracion
     view = memoryview(data)
 
     while total_sent < len(data):
-        sent = socket.send(view[total_sent:]) # con view ahorro memoria en vez de crear slices en cada iteracion
+        sent = socket.send(view[total_sent:])
         if sent is None:
             raise ConnectionError("Safe Socket: connection closed before sending all bytes")
         total_sent += sent

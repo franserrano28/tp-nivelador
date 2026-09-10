@@ -48,6 +48,7 @@ func (client *Client) Close() error {
 	return client.conn.Close()
 }
 
+// Si el error ocurre porque el cliente fue cerrado a proposito lo ignora
 func (client *Client) shutdownAwareError(err error) error {
 	if err != nil && !client.running.Load() {
 		return nil
@@ -77,6 +78,7 @@ func connectToServer(host, port string) (net.Conn, error) {
 	return nil, err
 }
 
+// Corre el proceso central, se envian las bets por el protocolo y un finished, luego se espera a las ganadoras
 func (client *Client) Run() error {
 	const mainAction = "process-bets"
 
@@ -115,6 +117,7 @@ func (client *Client) Run() error {
 	return nil
 }
 
+// Lee el archivo, envia los bets en batches y cuenta cuantos envio para loggearlo
 func (client *Client) sendBets(inFile *os.File) (int, error) {
 	scanner := bufio.NewScanner(inFile)
 	batch := []lottery.Bet{}
@@ -157,6 +160,7 @@ func (client *Client) sendBets(inFile *os.File) (int, error) {
 	return betsSent, nil
 }
 
+// Se persisten los ganadores de cada agencia (o cliente) en un archivo 
 func (client *Client) persistWinners(winners []string) error {
 	outFile, err := os.Create(client.config.OutputFile)
 	

@@ -26,10 +26,10 @@ Un punto de diseño que resultó importante a la hora del desarrollo fue que cad
 
 | Tipo         | Valor | Dirección        | Payload                                                        |
 |--------------|-------|-------------------|------------------------------------------------------------------|
+| `BATCH`      | 0x01  | cliente → servidor | id de agencia + N apuestas, una por línea  |
 | `FINISHED`   | 0x02  | cliente → servidor | id de agencia                                                    |
 | `WINNERS`    | 0x03  | servidor → cliente | lista de ganadores de esa agencia, una apuesta por línea         |
-| `BATCH`      | 0x04  | cliente → servidor | id de agencia + N apuestas, una por línea  |
-| `BATCH_ACK`  | 0x05  | servidor → cliente | 1 byte: 1 si el batch se persistió correctamente, 0 si no |
+| `BATCH_ACK`  | 0x04  | servidor → cliente | 1 byte: 1 si el batch se persistió correctamente, 0 si no |
 
 ### 2.3 Flujo de comunicación
 

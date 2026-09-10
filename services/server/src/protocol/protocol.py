@@ -6,10 +6,10 @@ from lottery import Bet
 
 _LENGTH_PREFIX_SIZE = 4
 
+MSG_BATCH = 0x01
 MSG_FINISHED = 0x02
 MSG_WINNERS = 0x03
-MSG_BATCH = 0x04
-MSG_BATCH_ACK = 0x05
+MSG_BATCH_ACK = 0x04
 
 class Protocol:
     def __init__(self, client_socket: socket.socket):
@@ -57,6 +57,7 @@ class Protocol:
 
     def _send_message(self, msg_type, payload):
         body = bytes([msg_type]) + payload
+        # Big endian Uint
         length_prefix = struct.pack(">I", len(body))
         frame = length_prefix + body
         safe_socket.send_all(self.socket, frame)
@@ -67,6 +68,7 @@ class Protocol:
         if len(length_prefix) < _LENGTH_PREFIX_SIZE:
             return None, None
 
+        # Big endian Uint
         (length,) = struct.unpack(">I", length_prefix)
 
         body = safe_socket.recv_all(self.socket, length)
