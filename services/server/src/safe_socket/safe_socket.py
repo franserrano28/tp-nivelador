@@ -1,19 +1,21 @@
 import socket
 
 def recv_all(socket: socket.socket, size):
-    buffer = b""
+    buffer = bytearray()
     while len(buffer) < size:
         chunk = socket.recv(size - len(buffer))
         if not chunk:
-            break
-        buffer += chunk
+            raise ConnectionError("Safe Socket: connection closed before receiving all bytes")
+        buffer.extend(chunk)
      
     return buffer
 
 def send_all(socket: socket.socket, data):
     total_sent = 0
+    view = memoryview(data)
+
     while total_sent < len(data):
-        sent = socket.send(data[total_sent:])
-        if sent == 0:
-            raise ConnectionError
+        sent = socket.send(view[total_sent:]) # con view ahorro memoria en vez de crear slices en cada iteracion
+        if sent is None:
+            raise ConnectionError("Safe Socket: connection closed before sending all bytes")
         total_sent += sent

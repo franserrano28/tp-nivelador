@@ -59,17 +59,27 @@ func SendFinished(conn io.Writer, agencyId string) error {
 }
 
 func RecvWinners(conn io.Reader) ([]string, error) {
-	msgType, payload, err := recvMessage(conn)
-	if err != nil {
-		return nil, err
-	}
-	if msgType != MsgWinners {
-		return nil, fmt.Errorf("protocol: expected WINNERS message, got type %v", msgType)
-	}
-	if len(payload) == 0 {
-		return []string{}, nil
-	}
-	return strings.Split(string(payload), ","), nil
+    msgType, payload, err := recvMessage(conn)
+
+    if err != nil {
+        return nil, err
+    }
+
+    if msgType != MsgWinners {
+        return nil, fmt.Errorf("protocol: expected WINNERS message, got type %v", msgType)
+    }
+
+    if len(payload) == 0 {
+        return []string{}, nil
+    }
+
+    raw := strings.TrimSpace(string(payload))
+
+    if raw == "" {
+        return []string{}, nil
+    }
+
+    return strings.Split(raw, "\n"), nil
 }
 
 func sendMessage(conn io.Writer, msgType MessageType, payload []byte) error {

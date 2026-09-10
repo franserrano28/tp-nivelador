@@ -62,6 +62,10 @@ def send_batch_ack(sock: socket.socket, success: bool) -> None:
     _send_message(sock, MSG_BATCH_ACK, payload)
 
 
-def send_winners(sock: socket.socket, documents):
-    payload = ",".join(str(document) for document in documents).encode("utf-8")
+def send_winners(sock: socket.socket, winners):
+    lines = [
+        f"{bet.first_name},{bet.last_name},{bet.document},{bet.birthdate},{bet.number}"
+        for bet in winners
+    ]
+    payload = "\n".join(lines).encode("utf-8") if lines else b""
     _send_message(sock, MSG_WINNERS, payload)

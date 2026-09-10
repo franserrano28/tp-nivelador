@@ -2,10 +2,13 @@ package client
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"net"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/7574-sistemas-distribuidos/tp-nivelador/src/logger"
@@ -20,7 +23,7 @@ type ClientConfig struct {
 	ServerPort string
 	AgencyId   string
 	Input      string
-	OutputDir  string
+	OutputFile string
 	BatchSize  int
 }
 
@@ -30,40 +33,61 @@ type Client struct {
 }
 
 func NewClient(config ClientConfig) (*Client, error) {
-	conn, err := connectToServer(config.ServerHost, config.ServerPort)
-	if err != nil {
-		logger.Warn("connect-to-server", logger.Fail)
-		return nil, err
-	}
-
-	client := &Client{conn: conn, config: config}
-	return client, nil
+	return &Client{config: config}, nil
 }
 
-func connectToServer(host, port string) (net.Conn, error) {
+func connectToServer(ctx context.Context, host, port string) (net.Conn, error) {
 	const action = "connect-to-server"
+	var dialer net.Dialer
 	var err error
 	var conn net.Conn
 
 	logger.Info(action, logger.InProgress)
-	for i := range CONNECTION_ATTEMPTS_MAX {
-		conn, err = net.Dial("tcp", host+":"+port)
-		if err != nil {
-			logger.Warn(action, logger.Fail, "attempt", i)
-			time.Sleep(CONNECTION_ATTEMPS_DELAY_MS * time.Millisecond)
-			continue
+	for i := 0; i < CONNECTION_ATTEMPTS_MAX; i++ {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
 		}
 
-		logger.Info(action, logger.Success)
-		break
+		conn, err = dialer.DialContext(ctx, "tcp", net.JoinHostPort(host, port))
+		if err == nil {
+			logger.Info(action, logger.Success)
+			return conn, nil
+		}
+
+		logger.Warn(action, logger.Fail, "attempt", i)
+
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(CONNECTION_ATTEMPS_DELAY_MS * time.Millisecond):
+		}
 	}
 
-	return conn, err
+	return nil, err
 }
 
 func (client *Client) Run() error {
 	const mainAction = "process-bets"
+
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
+	defer stop()
+
+	conn, err := connectToServer(ctx, client.config.ServerHost, client.config.ServerPort)
+	if err != nil {
+		logger.Warn("connect-to-server", logger.Fail)
+		return err
+	}
+	client.conn = conn
 	defer client.conn.Close()
+
+	go func() {
+		<-ctx.Done()
+		if client.conn != nil {
+			client.conn.Close()
+		}
+	}()
 
 	inFile, err := os.Open(client.config.Input)
 	if err != nil {
@@ -72,18 +96,28 @@ func (client *Client) Run() error {
 	}
 	defer inFile.Close()
 
-	betsSent, err := client.sendBets(inFile)
+	betsSent, err := client.sendBets(ctx, inFile)
 	if err != nil {
+		if ctx.Err() != nil {
+			logger.Info(mainAction, logger.Success, "action", "graceful-shutdown-during-send")
+			return nil
+		}
 		return err
 	}
 
 	if err := protocol.SendFinished(client.conn, client.config.AgencyId); err != nil {
+		if ctx.Err() != nil {
+			return nil
+		}
 		logger.Error("send-finished", logger.Fail, "agency-id", client.config.AgencyId)
 		return err
 	}
 
 	winners, err := protocol.RecvWinners(client.conn)
 	if err != nil {
+		if ctx.Err() != nil {
+			return nil
+		}
 		logger.Error("recv-winners", logger.Fail, "agency-id", client.config.AgencyId)
 		return err
 	}
@@ -100,7 +134,7 @@ func (client *Client) Run() error {
 	return nil
 }
 
-func (client *Client) sendBets(inFile *os.File) (int, error) {
+func (client *Client) sendBets(ctx context.Context, inFile *os.File) (int, error) {
 	scanner := bufio.NewScanner(inFile)
 	batch := make([]protocol.Bet, 0, client.config.BatchSize)
 	betsSent := 0
@@ -109,6 +143,10 @@ func (client *Client) sendBets(inFile *os.File) (int, error) {
 		if len(batch) == 0 {
 			return nil
 		}
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+
 		if err := protocol.SendBatch(client.conn, client.config.AgencyId, batch); err != nil {
 			logger.Error("send-batch", logger.Fail, "agency-id", client.config.AgencyId, "batch-size", len(batch))
 			return err
@@ -128,6 +166,12 @@ func (client *Client) sendBets(inFile *os.File) (int, error) {
 	}
 
 	for scanner.Scan() {
+		select {
+		case <-ctx.Done():
+			return betsSent, ctx.Err()
+		default:
+		}
+
 		line := strings.TrimRight(scanner.Text(), "\r\n")
 		if line == "" {
 			continue
@@ -167,9 +211,7 @@ func (client *Client) sendBets(inFile *os.File) (int, error) {
 }
 
 func (client *Client) persistWinners(winners []string) error {
-	outputPath := fmt.Sprintf("%s/output-%s.txt", client.config.OutputDir, client.config.AgencyId)
-
-	outFile, err := os.Create(outputPath)
+	outFile, err := os.Create(client.config.OutputFile)
 	if err != nil {
 		logger.Error("open-output-file", logger.Fail, "error", err)
 		return err

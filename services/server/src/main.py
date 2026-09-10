@@ -6,9 +6,8 @@ import server
 
 SERVER_HOST = os.environ["SERVER_HOST"]
 SERVER_PORT = int(os.environ["SERVER_PORT"])
-STORAGE_PATH = os.environ["STORAGE_PATH"]
-AGENCY_QUORUM_MIN = int(os.environ["AGENCY_QUORUM_MIN"])
-
+STORAGE_PATH = os.getenv("STORAGE_PATH", "bets.csv")
+AGENCY_QUORUM_MIN = int(os.getenv("AGENCY_QUORUM_MIN", "1"))
 
 def main():
     logger.init()
