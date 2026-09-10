@@ -6,9 +6,9 @@ from lottery import Bet
 
 _LENGTH_PREFIX_SIZE = 4
 
-MSG_BATCH = 0x04
 MSG_FINISHED = 0x02
 MSG_WINNERS = 0x03
+MSG_BATCH = 0x04
 MSG_BATCH_ACK = 0x05
 
 class Protocol:
