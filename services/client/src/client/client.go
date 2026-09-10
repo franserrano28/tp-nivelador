@@ -43,6 +43,18 @@ func NewClient(config ClientConfig) (*Client, error) {
 	return client, nil
 }
 
+func (client *Client) Close() error {
+	client.running.Store(false)
+	return client.conn.Close()
+}
+
+func (client *Client) shutdownAwareError(err error) error {
+	if err != nil && !client.running.Load() {
+		return nil
+	}
+	return err
+}
+
 func connectToServer(host, port string) (net.Conn, error) {
 	const action = "connect-to-server"
 	var err error
@@ -79,16 +91,16 @@ func (client *Client) Run() error {
 
 	betsSent, err := client.sendBets(inFile)
 	if err != nil {
-		return err
+		return client.shutdownAwareError(err)
 	}
 
 	if err := protocol.SendFinished(client.conn, client.config.AgencyId); err != nil {
-		return err
+		return client.shutdownAwareError(err)
 	}
 
 	winners, err := protocol.RecvWinners(client.conn)
 	if err != nil {
-		return err
+		return client.shutdownAwareError(err)
 	}
 
 	if err := client.persistWinners(winners); err != nil {
